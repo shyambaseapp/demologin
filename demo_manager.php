@@ -44,13 +44,28 @@ class Demo
             $hours  =   ($date2 - $date1) / (60 * 60);
         }
 
+
+        $backup_source = $argv[2];
+
+        $data = str_replace('/', '_', $backup_source);
+        $backup_destination = '/srv/www/backup/' . $data;
+
+
+
+        $reset_source = $backup_destination;
+        $data = strstr($reset_source, "_");
+        $data =  preg_match("/_.*_/m", $data, $data_match);
+        $data = str_replace('_', '/', $data_match[0]);
+        $reset_destination = $data;
+
+
+
         #Calling backup_site function : 
 
         if ($argv[1] == '--backup') {
+
             if (file_exists($argv[2]) == 1) {
-                $backup_source = $argv[2];
-                $data = str_replace('/', '_', $backup_source);
-                $backup_destination = '/srv/www/backup/' . $data;
+
                 $this->backup_site($backup_source, $backup_destination);
             } else {
                 echo "File/Dir does not exists";
@@ -60,33 +75,41 @@ class Demo
         #Calling resret_site function : 
 
         if ($argv[1] == '--reset') {
-            if (file_exists($argv[2]) && $hours >= 24) {
-                $reset_source = $argv[2];
-                $data = strstr($reset_source, "_");
-                $data =  preg_match("/_.*_/m", $data, $data_match);
-                $data = str_replace('_', '/', $data_match[0]);
-                $reset_destination = $data;
-                echo $reset_source . "   ";
-                echo $reset_destination . "   ";
+            if (file_exists($argv[2]) && $hours <= 24) {
+
                 $this->reset_site($reset_source, $reset_destination);
             } else {
                 echo "File/Dir does not exists";
             }
         }
+
+        # Calling reset_all_site function :
+        if ($argv[1] == '--reset-all') {
+            if (file_exists($backup_destination)){
+                $a = scandir($backup_destination);
+                $count = count($a);
+                for ($i = 0; $i <= $count; $i++) {
+                   
+                        $b = $a[$i];
+                        
+                   
+                }
+            }
+           
+        }
     }
 
 
-    function exec_command($command) {
-        echo $command;
+    function exec_command($command)
+    {
         $result = shell_exec($command);
-        echo $result;
     }
     #  Backup Wordpress Site:
 
     function backup_site($backup_source, $backup_destination)
     {
 
-        $backup_db   =   $this->exec_command('mysqldump --no-tablespaces -u '.$this->dbuser.'  -p'.$this->dbpass.' '.$this->dbname . ' >  demo_backup.sql');
+        $backup_db   =   $this->exec_command('mysqldump --no-tablespaces --user=' . $this->dbuser . ' --password=' . $this->dbpass . ' --result-file=' . $backup_destination . '/dbdup.sql --databases ' . $this->dbname);
         $backup_site   =   shell_exec('sudo rsync -avz ' . $backup_source . '  ' . $backup_destination . '');
     }
 
@@ -96,15 +119,12 @@ class Demo
     function reset_site($reset_source, $reset_destination)
     {
 
-        $reset_db   =   shell_exec('mysqldump -u root -p'.$this->dbname . ' < demo_backup.sql');
-        $reset_site   =   shell_exec('sudo rsync -avz ' . $reset_source . ' ' . $reset_destination . '');
+
+        $reset_db   =   shell_exec('mysql -u ' . $this->dbuser . ' -p' . $this->dbpass . ' ' . $this->dbname . '< ' . $reset_source . '/dbdup.sql');
+        echo $reset_db;
+        $reset_site   =   shell_exec('sudo rsync -r ' . $reset_source . '/ ' . $reset_destination);
     }
 
-    #restore all wordpress site : 
-
-    function reset_all_site()
-    {
-    }
 }
 $objdemo = new Demo($dbname, $dbuser, $dbpass, $dbhost);
 $objdemo->main();
